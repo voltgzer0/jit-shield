@@ -148,11 +148,25 @@ contract JITShieldTest is Test {
 
         assertTrue(hook.surgePending(pid), "surge should be armed for the next swap");
 
-        // Next swap consumes the surge: beforeSwap returns a fee override with the surge flag.
+        // Next swap consumes the surge: beforeSwap returns a fee override with the surge flag
+        // AND takes a protocol cut. The hook calls poolManager.take() during beforeSwap, so we
+        // mock it for this unit test — the integration test on Anvil exercises the real call.
+        vm.mockCall(
+            manager,
+            abi.encodeWithSelector(IPoolManager.take.selector),
+            ""
+        );
         vm.prank(manager);
         (, , uint24 feeOverride) = hook.beforeSwap(swapper, key, sp, "");
         assertTrue(feeOverride & LPFeeLibrary.OVERRIDE_FEE_FLAG != 0, "override flag missing");
         assertFalse(hook.surgePending(pid), "surge should be consumed");
+
+        // Protocol cut accrued in currency0 (zeroForOne = true).
+        // cut = 1e18 * 7000 * 1000 / 1e10 = 7e17 ... wait
+        // cut = inputAmt * surge * protocolBips / 10_000_000_000
+        //     = 1e18 * 7000 * 1000 / 10_000_000_000
+        //     = 7e24 / 1e10 = 7e14
+        assertEq(hook.accruedFees(key.currency0), 7e14, "protocol cut accrued");
     }
 
     function test_NoSurgeWhenNoJIT() public {

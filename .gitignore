@@ -18,3 +18,18 @@ docs/
 .env
 .env.*
 !.env.example
+
+# Foundry
+foundry.lock
+
+# Editor
+.vscode/
+.idea/
+
+# Local scripts used during scaffolding
+check.sh
+scaffold.sh
+install_v4.sh
+build.sh
+test_run.sh
+commit.sh
