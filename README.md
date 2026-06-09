@@ -5,6 +5,7 @@ protocol fee on every shielded swap.
 
 - 🌐 **Live site:** [voltgzer0.github.io/jit-shield](https://voltgzer0.github.io/jit-shield)
 - 📜 **Hook on Sepolia (verified):** [`0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8`](https://sepolia.etherscan.io/address/0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8#code)
+- 🐦 **Follow / DM:** [x.com/voltgzer0](https://x.com/voltgzer0)
 - ✅ **Tests:** 12 / 12 passing · Slither: 0 actionable findings
 - 🔐 **Audit posture:** see [`SECURITY.md`](./SECURITY.md)
 - 📦 **All deployments and tx hashes:** see [`DEPLOYMENTS.md`](./DEPLOYMENTS.md)
