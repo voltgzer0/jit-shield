@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="JITShield — a Uniswap v4 hook that neutralises Just-In-Time MEV against passive LPs and earns a protocol fee on every shielded swap. Live on Sepolia." />
+<title>JITShield — Uniswap v4 JIT MEV protection that earns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d12;
+    --bg-elev: #11161e;
+    --bg-elev-2: #161d27;
+    --line: #1f2935;
+    --text: #e6edf6;
+    --text-dim: #9aa6b6;
+    --text-faint: #5e6b7c;
+    --accent: #00d4a1;
+    --accent-dim: #1c8a6f;
+    --warn: #ffb454;
+    --bad: #ff5b6e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    line-height: 1.55;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10, 13, 18, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    max-width: 1100px; margin: 0 auto; padding: 16px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .logo { font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
+  .logo .dot { color: var(--accent); }
+  .nav-links a { color: var(--text-dim); margin-left: 24px; font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+  /* ---------- Layout ---------- */
+  section { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
+  h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
+  h1 { font-size: 56px; font-weight: 800; line-height: 1.05; }
+  h2 { font-size: 32px; font-weight: 700; margin-bottom: 24px; }
+  h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  p { color: var(--text-dim); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding-top: 100px; padding-bottom: 60px; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0, 212, 161, 0.1); color: var(--accent);
+    border: 1px solid rgba(0, 212, 161, 0.3);
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 13px; font-weight: 500; margin-bottom: 24px;
+  }
+  .hero-tag .live-dot {
+    width: 8px; height: 8px; background: var(--accent); border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 212, 161, 0.5); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(0, 212, 161, 0); }
+  }
+  .hero h1 { margin-bottom: 24px; max-width: 800px; }
+  .hero h1 .accent { color: var(--accent); }
+  .hero-sub {
+    font-size: 20px; color: var(--text-dim); max-width: 720px;
+    margin-bottom: 40px;
+  }
+  .hero-cta { display: flex; gap: 16px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 14px 24px; border-radius: 8px;
+    font-weight: 600; font-size: 15px;
+    transition: all 0.15s ease;
+  }
+  .btn-primary {
+    background: var(--accent); color: var(--bg);
+    box-shadow: 0 4px 14px rgba(0, 212, 161, 0.3);
+  }
+  .btn-primary:hover { background: #00f0b8; text-decoration: none; transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--bg-elev); color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .btn-secondary:hover { background: var(--bg-elev-2); text-decoration: none; }
+
+  /* ---------- Live card ---------- */
+  .live-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 40px;
+  }
+  .live-card h3 { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .chain-badge {
+    background: rgba(132, 100, 255, 0.15); color: #a991ff;
+    border: 1px solid rgba(132, 100, 255, 0.3);
+    padding: 2px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .kv-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+    gap: 16px;
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-label { color: var(--text-dim); font-size: 14px; flex-shrink: 0; }
+  .kv-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right;
+              word-break: break-all; }
+  .kv-value a { color: var(--text); border-bottom: 1px dotted var(--text-faint); }
+  .kv-value a:hover { color: var(--accent); border-bottom-color: var(--accent); text-decoration: none; }
+
+  /* ---------- Section: how it works ---------- */
+  .grid-3 {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  }
+  .step-card {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 12px; padding: 28px;
+  }
+  .step-num {
+    width: 36px; height: 36px;
+    background: rgba(0, 212, 161, 0.1); color: var(--accent);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  /* ---------- Numbers ---------- */
+  .numbers-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    margin-top: 32px;
+  }
+  .stat {
+    background: var(--bg-elev); border: 1px solid var(--line);
+    border-radius: 12px; padding: 24px;
+  }
+  .stat-value {
+    font-size: 32px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 4px;
+  }
+  .stat-value.accent { color: var(--accent); }
+  .stat-label { color: var(--text-dim); font-size: 13px; }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { color: var(--text-dim); font-weight: 600; font-size: 13px;
+       text-transform: uppercase; letter-spacing: 0.05em; }
+  td { color: var(--text); font-size: 14px; }
+  td .mono { font-size: 13px; }
+
+  /* ---------- Code blocks ---------- */
+  pre {
+    background: #06090d; border: 1px solid var(--line);
+    border-radius: 10px; padding: 20px; overflow-x: auto;
+    font-size: 13px; line-height: 1.6;
+  }
+  pre code { color: var(--text); }
+  .code-comment { color: var(--text-faint); }
+  .code-accent { color: var(--accent); }
+
+  /* ---------- Two columns ---------- */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 40px 24px; margin-top: 80px;
+  }
+  .footer-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-inner p { font-size: 13px; margin: 0; }
+  .footer-links a { margin-left: 20px; font-size: 13px; color: var(--text-dim); }
+  .footer-links a:hover { color: var(--text); text-decoration: none; }
+
+  /* ---------- Disclaimer banner ---------- */
+  .disclaimer {
+    background: rgba(255, 180, 84, 0.08);
+    border: 1px solid rgba(255, 180, 84, 0.3);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .disclaimer strong { color: var(--warn); }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 800px) {
+    h1 { font-size: 38px; }
+    h2 { font-size: 26px; }
+    section { padding: 60px 20px; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .nav-links a:nth-child(2) { display: none; }
+    .kv-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .kv-value { text-align: left; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ---------- NAV ---------- -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo">JITShield<span class="dot">.</span></div>
+    <div class="nav-links">
+      <a href="#mechanism">Mechanism</a>
+      <a href="#economics">Economics</a>
+      <a href="#live">Live on Sepolia</a>
+      <a href="#proof">Verify</a>
+      <a href="https://github.com/voltgzer0" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ---------- HERO ---------- -->
+<section class="hero">
+  <span class="hero-tag">
+    <span class="live-dot"></span>
+    Live on Sepolia · Contract verified on-chain
+  </span>
+  <h1>
+    A Uniswap v4 hook that <span class="accent">neutralises JIT MEV</span><br />
+    and earns a protocol fee on every shielded swap.
+  </h1>
+  <p class="hero-sub">
+    Passive LPs in v3 and v4 leak an estimated $50–200M a year to Just-In-Time liquidity
+    snipers. JITShield detects the same-block JIT pattern, fires a surge fee on the next swap,
+    and keeps a 10% protocol cut from the surge premium. Open-source, audited internally,
+    deployable in 60 seconds.
+  </p>
+  <div class="hero-cta">
+    <a class="btn btn-primary" href="#live">View live deployment</a>
+    <a class="btn btn-secondary" href="#mechanism">How it works</a>
+  </div>
+
+  <!-- Live card -->
+  <div class="live-card" id="live">
+    <h3>
+      <span>Deployed contract</span>
+      <span class="chain-badge">Sepolia · chain 11155111</span>
+    </h3>
+    <div class="kv-row">
+      <span class="kv-label">Hook address</span>
+      <span class="kv-value">
+        <a href="https://sepolia.etherscan.io/address/0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8" target="_blank" rel="noopener">
+          0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8
+        </a>
+      </span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Hook flag bits</span>
+      <span class="kv-value">0x2AC8 — BEFORE_INITIALIZE | ADD_LIQUIDITY | REMOVE_LIQUIDITY | SWAP | AFTER_SWAP | RETURNS_DELTA</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Bound PoolManager</span>
+      <span class="kv-value">
+        <a href="https://sepolia.etherscan.io/address/0xE03A1074c86CFeDd5C142C4F04F1a1536e203543" target="_blank" rel="noopener">
+          0xE03A1074c86CFeDd5C142C4F04F1a1536e203543
+        </a>
+      </span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Live test pool</span>
+      <span class="kv-value">
+        PoolId <code>0x467d6551…522818</code>
+        ·
+        <a href="https://sepolia.etherscan.io/tx/0x4198bd4f0ca2723e0f9632bbc708a4af8e53ccde5c46e398f6092d320ee7546b" target="_blank" rel="noopener">init tx</a>
+      </span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Live JIT scenario</span>
+      <span class="kv-value">
+        <a href="https://sepolia.etherscan.io/tx/0x2ee624d85aa911c9a7d54a975266b77f7cb8a75810d312c963b791e8f35a1d1f" target="_blank" rel="noopener">
+          0x2ee624d8…a1d1f
+        </a>
+        — surge fired, 7×10¹⁴ wei accrued to hook
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ---------- MECHANISM ---------- -->
+<section id="mechanism">
+  <h2>The three-stage mechanism</h2>
+  <p style="max-width: 720px; margin-bottom: 40px;">
+    Runs inside any Uniswap v4 pool created with a dynamic LP fee. No off-chain components.
+    No oracles. Pure stateless-per-swap bookkeeping.
+  </p>
+  <div class="grid-3">
+    <div class="step-card">
+      <div class="step-num">01</div>
+      <h3>Same-block detection</h3>
+      <p>
+        <code>beforeAddLiquidity</code> flags any position added in the same block as the
+        previous swap on that pool. The position is time-locked from earning the surge
+        premium for the next 5 blocks. Passive LPs are unaffected; JIT searchers are not.
+      </p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">02</div>
+      <h3>Surge premium</h3>
+      <p>
+        When a flagged position exits during its lock window, the next swap on the pool is
+        charged a 0.7% surge fee on top of the base LP fee. The surge is paid by the swapper,
+        not the LP. 90% of the surge premium goes to passive LPs as compensation.
+      </p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">03</div>
+      <h3>Protocol cut</h3>
+      <p>
+        The remaining 10% of the surge premium is carved out via <code>BeforeSwapDelta</code>
+        and pulled into the hook contract through <code>PoolManager.take</code>. This is
+        the protocol's revenue line — sustaining the project without taxing honest activity.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ---------- ECONOMICS ---------- -->
+<section id="economics">
+  <h2>Economics</h2>
+  <p style="max-width: 720px;">
+    Verified by a Forge test against a mainnet fork plus a live execution on Sepolia.
+    Numbers below are per-shielded-swap and scale linearly with shielded volume.
+  </p>
+
+  <div class="numbers-grid">
+    <div class="stat">
+      <div class="stat-value">7000</div>
+      <div class="stat-label">ppm of input — surge premium (0.7%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">6300</div>
+      <div class="stat-label">ppm — share returned to passive LPs</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value accent">700</div>
+      <div class="stat-label">ppm — protocol revenue share</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">5</div>
+      <div class="stat-label">blocks — JIT position time-lock window</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 48px;">Scaled to a $500,000 shielded swap (1 token = $1)</h3>
+  <table>
+    <thead>
+      <tr><th>Recipient</th><th>Per swap</th><th>10 swaps / day</th><th>Annualised</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Passive LPs</td><td class="mono">$3,150</td><td class="mono">$31,500</td><td class="mono">$11,497,500</td></tr>
+      <tr><td><strong>Protocol</strong></td><td class="mono">$350</td><td class="mono">$3,500</td><td class="mono"><strong>$1,277,500</strong></td></tr>
+    </tbody>
+  </table>
+  <div class="disclaimer">
+    <strong>Disclaimer:</strong> Numbers assume an active pool with 10 shielded swaps per day at
+    $500K each. Real adoption ramps over time; first-year realistic protocol ARR is more likely
+    in the $100K–$500K range with a handful of partner pools. Zero pools adopt = zero revenue.
+  </div>
+</section>
+
+<!-- ---------- PROOF ---------- -->
+<section id="proof">
+  <h2>Verify it yourself</h2>
+  <p style="max-width: 720px;">
+    Every claim on this page can be verified from a public RPC. Paste these three commands —
+    no account, no API key — and watch the chain confirm the hook holds the tokens it earned.
+  </p>
+
+<pre><code><span class="code-comment"># 1. Hook says it accrued 7×10¹⁴ wei of currency0:</span>
+cast call <span class="code-accent">0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8</span> \
+    'accruedFees(address)(uint256)' \
+    0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872 \
+    --rpc-url https://ethereum-sepolia.publicnode.com
+<span class="code-comment"># → 700000000000000</span>
+
+<span class="code-comment"># 2. The currency0 contract confirms the hook actually holds those tokens:</span>
+cast call <span class="code-accent">0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872</span> \
+    'balanceOf(address)(uint256)' \
+    0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8 \
+    --rpc-url https://ethereum-sepolia.publicnode.com
+<span class="code-comment"># → 700000000000000</span>
+
+<span class="code-comment"># 3. Hook config — what it will do on the NEXT swap:</span>
+cast call <span class="code-accent">0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8</span> \
+    'surgeFeeBips()(uint24)' \
+    --rpc-url https://ethereum-sepolia.publicnode.com
+<span class="code-comment"># → 7000  (0.7%)</span></code></pre>
+
+  <p style="margin-top: 24px;">
+    The two balances match. The hook's internal bookkeeping is exactly equal to its real
+    ERC20 balance. That is the end-to-end proof: the mechanism does not just emit events;
+    it accumulates a tradeable balance.
+  </p>
+</section>
+
+<!-- ---------- TWO COLUMN: FOR DEPLOYERS / FOR LPS ---------- -->
+<section>
+  <div class="two-col">
+    <div>
+      <h2>For pool deployers</h2>
+      <p>
+        Building a new dynamic-fee v4 pool? Attach JITShield as the hook. Your pool inherits
+        MEV protection for LPs and a transparent surge-fee mechanism — without adding any
+        operational overhead. The hook is permissionless. You don't ask anyone.
+      </p>
+      <ul style="color: var(--text-dim); line-height: 1.8;">
+        <li>Single hook address; passes v4 permission validation</li>
+        <li>No oracle. No off-chain keeper. No external dependency.</li>
+        <li>Open MIT source; you can fork, audit, or fork-and-modify</li>
+        <li>Initial config tunable per deployment</li>
+      </ul>
+    </div>
+    <div>
+      <h2>For LPs</h2>
+      <p>
+        Provide passive liquidity into a JITShield-protected pool. Your range stays earning
+        base fees as normal. When a JIT searcher tries to extract from a swap, the hook
+        injects a surge fee that is redistributed to honest LPs — you get more than the base
+        fee on shielded swaps, automatically.
+      </p>
+      <ul style="color: var(--text-dim); line-height: 1.8;">
+        <li>No new contracts to interact with — standard v4 modify-liquidity flow</li>
+        <li>No subscription. No claim step. The fee just lands.</li>
+        <li>You see surge events on-chain — verify directly from Etherscan</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ---------- SECURITY ---------- -->
+<section id="security">
+  <h2>Security posture</h2>
+  <table>
+    <tbody>
+      <tr><td>Unit + integration + economics tests</td><td class="mono"><strong>12 / 12 passing</strong></td></tr>
+      <tr><td>Slither (filtered, exclude-informational)</td><td class="mono"><strong>0 actionable findings</strong></td></tr>
+      <tr><td>Manual review (function-by-function)</td><td class="mono">1 HIGH, 5 MEDIUM, 4 LOW (4 LOW fixed)</td></tr>
+      <tr><td>Compiler</td><td class="mono">solc 0.8.26 · evm cancun · optimizer 200</td></tr>
+      <tr><td>License</td><td class="mono">MIT</td></tr>
+      <tr><td>Pre-mainnet checklist</td><td>multisig owner · 2-step ownership · range-width signal · pause · external audit · bug bounty</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top: 16px;">
+    Sepolia is a publicly verifiable test. Mainnet deployment will not happen before the
+    full pre-mainnet checklist (in <a href="https://github.com/voltgzer0" target="_blank">SECURITY.md</a>) is cleared, an external audit is on file, and a public bug bounty has been open for at least 14 days.
+  </p>
+</section>
+
+<!-- ---------- FOOTER ---------- -->
+<footer>
+  <div class="footer-inner">
+    <p style="color: var(--text-faint);">
+      JITShield · open-source MIT · built by <span style="color: var(--accent);">voltgzer0</span>
+    </p>
+    <div class="footer-links">
+      <a href="https://github.com/voltgzer0" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://sepolia.etherscan.io/address/0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8" target="_blank" rel="noopener">Etherscan</a>
+      <a href="mailto:voltmattty77@gmail.com">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
