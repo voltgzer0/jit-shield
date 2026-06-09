@@ -47,6 +47,7 @@ contract JITShield is IHooks {
     event ProtocolFeeAccrued(Currency indexed currency, uint256 amount);
     event ProtocolFeeWithdrawn(Currency indexed currency, address indexed to, uint256 amount);
     event ConfigUpdated(uint24 surgeFee, uint16 protocolFeeBips, uint16 timeLockBlocks);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // --- Storage ----------------------------------------------------------------------------
 
@@ -79,6 +80,7 @@ contract JITShield is IHooks {
     // --- Constructor ------------------------------------------------------------------------
 
     constructor(IPoolManager _poolManager, address _owner, uint24 _surgeFeeBips, uint16 _protocolFeeBips, uint16 _timeLockBlocks) {
+        if (address(_poolManager) == address(0)) revert InvalidConfig();
         if (_owner == address(0)) revert InvalidConfig();
         if (_surgeFeeBips > LPFeeLibrary.MAX_LP_FEE) revert InvalidConfig();
         if (_protocolFeeBips > 10_000) revert InvalidConfig();
@@ -121,7 +123,9 @@ contract JITShield is IHooks {
 
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert InvalidConfig();
+        address previous = owner;
         owner = newOwner;
+        emit OwnershipTransferred(previous, newOwner);
     }
 
     // --- Position key helper ----------------------------------------------------------------
@@ -229,13 +233,14 @@ contract JITShield is IHooks {
                 uint256 cut = inputAmt * uint256(surge) * uint256(protocolFeeBips) / 10_000_000_000;
                 if (cut > 0 && cut <= uint256(uint128(type(int128).max))) {
                     Currency inputCurrency = params.zeroForOne ? key.currency0 : key.currency1;
+                    // Checks-effects-interactions: account + delta first, then external call.
+                    accruedFees[inputCurrency] += cut;
+                    returnDelta = toBeforeSwapDelta(int128(uint128(cut)), 0);
+                    emit ProtocolFeeAccrued(inputCurrency, cut);
                     // Pull the cut into this contract. We are inside the swapper's unlock
                     // context; calling take() debits our delta by `cut`, the BeforeSwapDelta
                     // we return credits us by `cut`, net zero — swapper pays the extra.
                     poolManager.take(inputCurrency, address(this), cut);
-                    accruedFees[inputCurrency] += cut;
-                    returnDelta = toBeforeSwapDelta(int128(uint128(cut)), 0);
-                    emit ProtocolFeeAccrued(inputCurrency, cut);
                 }
             }
         }
@@ -267,6 +272,7 @@ contract JITShield is IHooks {
 
     /// @notice Withdraw accrued protocol fees for one currency.
     function withdrawProtocolFees(Currency currency, address to) external onlyOwner returns (uint256 amount) {
+        if (to == address(0)) revert InvalidConfig();
         amount = accruedFees[currency];
         if (amount == 0) return 0;
         accruedFees[currency] = 0;
