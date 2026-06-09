@@ -90,6 +90,44 @@ cast call 0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8 \
     'surgePending(bytes32)(bool)' $POOL_ID --rpc-url $RPC
 ```
 
+## Live JIT scenario proof — surge fired on Sepolia
+
+The scenario primer-swap → JIT-add → JIT-remove → final-swap was executed atomically against
+the live pool. All four operations landed in the same block, so the hook's same-block
+detection actually fired. The protocol-fee accrual was then read back from on-chain state.
+
+| Field | Value |
+|---|---|
+| Atomic scenario tx | [`0x2ee624d85aa911c9a7d54a975266b77f7cb8a75810d312c963b791e8f35a1d1f`](https://sepolia.etherscan.io/tx/0x2ee624d85aa911c9a7d54a975266b77f7cb8a75810d312c963b791e8f35a1d1f) |
+| JITSimulator deploy tx | [`0x8a2ab97fb101f1eb68a81849ec7bab74447c125b53d525f992db1bdd714d970b`](https://sepolia.etherscan.io/tx/0x8a2ab97fb101f1eb68a81849ec7bab74447c125b53d525f992db1bdd714d970b) |
+| JITSimulator address | [`0x86A1a915D2a63F054220fca41e95aE437Ed51E6b`](https://sepolia.etherscan.io/address/0x86A1a915D2a63F054220fca41e95aE437Ed51E6b) |
+| Final swap input | `1e18` of currency0 (1 JTA token) |
+| Surge premium (LPs) | `6.3e15` (0.0063 JTA) |
+| **Protocol cut (us)** | `7e14` (0.0007 JTA) — **physically held by the hook contract** |
+| Formula check | `input × surgeBips × protocolBips / 1e10 = 1e18 × 7000 × 1000 / 1e10 = 7e14` ✓ |
+| `lastSwapBlock` after | `11023819` (was `0` before) |
+| `surgePending` after | `false` (consumed) |
+
+### Anyone can re-verify right now
+
+```bash
+HOOK=0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8
+C0=0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872
+RPC=https://ethereum-sepolia.publicnode.com
+
+# Hook says it accrued 7e14 of currency0:
+cast call $HOOK 'accruedFees(address)(uint256)' $C0 --rpc-url $RPC
+# → 700000000000000
+
+# Currency0 contract confirms the hook actually holds those tokens:
+cast call $C0 'balanceOf(address)(uint256)' $HOOK --rpc-url $RPC
+# → 700000000000000
+```
+
+The two numbers match — the hook's internal bookkeeping is exactly equal to the real ERC20
+balance the hook contract holds. That is the end-to-end proof: the mechanism does not just
+emit events and update mappings; it actually accumulates a tradeable balance.
+
 ### Mainnet readiness
 
 Sepolia deploy does **not** mean mainnet ready. See [SECURITY.md](SECURITY.md) for the open
