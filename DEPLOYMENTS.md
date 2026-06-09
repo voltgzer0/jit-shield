@@ -50,6 +50,46 @@ The address embedding these bits means Uniswap V4's PoolManager will route the m
 callbacks to this hook on every initialise / liquidity / swap action in any pool that
 uses it.
 
+## Live test pool on Sepolia
+
+A working dynamic-fee pool was initialised against this hook with two mock ERC20s so the
+mechanism can be exercised end-to-end on a public network.
+
+| Field | Value |
+|---|---|
+| **Pool ID** | `0x467d6551c1ac498475b01dd23cd73ce9a61de3fae5e00455e696cc55d5522818` |
+| Initial price | `sqrtPriceX96 = 79228162514264337593543950336` (1.0 : 1.0) |
+| Tick spacing | `60` |
+| Fee mode | dynamic (`0x800000`) — surge fee overrides per-swap |
+| `currency0` | [`0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872`](https://sepolia.etherscan.io/address/0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872) (JTA, JIT Test Token A, 18 dec) |
+| `currency1` | [`0x995b4cD6Cc4Bb7985b3869DC8eDBd32FCd38a892`](https://sepolia.etherscan.io/address/0x995b4cD6Cc4Bb7985b3869DC8eDBd32FCd38a892) (JTB, JIT Test Token B, 18 dec) |
+| Liquidity router | [`0xC76480A173321F33CF976D0355DF8ECC8e22B4ff`](https://sepolia.etherscan.io/address/0xC76480A173321F33CF976D0355DF8ECC8e22B4ff) (`PoolModifyLiquidityTest` from v4-core/src/test) |
+| Seed liquidity | `1e21` over ticks `[-600, +600]` from the deployer |
+| `initialize` tx | [`0x4198bd4f0ca2723e0f9632bbc708a4af8e53ccde5c46e398f6092d320ee7546b`](https://sepolia.etherscan.io/tx/0x4198bd4f0ca2723e0f9632bbc708a4af8e53ccde5c46e398f6092d320ee7546b) |
+| Seed-liquidity tx | [`0xf5b8e0452c35ca99e4f3b2366aff54005aefe6c9408781e4b3cb880c208cbd77`](https://sepolia.etherscan.io/tx/0xf5b8e0452c35ca99e4f3b2366aff54005aefe6c9408781e4b3cb880c208cbd77) |
+
+### Verifying the pool
+
+```bash
+POOL_ID=0x467d6551c1ac498475b01dd23cd73ce9a61de3fae5e00455e696cc55d5522818
+PM=0xE03A1074c86CFeDd5C142C4F04F1a1536e203543
+RPC=https://ethereum-sepolia.publicnode.com
+
+# slot0 lives at keccak(abi.encode(poolId, uint256(6)))
+SLOT=$(cast keccak "$(cast abi-encode 'f(bytes32,uint256)' $POOL_ID 6)")
+cast call $PM 'extsload(bytes32)' $SLOT --rpc-url $RPC
+# → 0x0000...0001000000...0  (sqrtPriceX96 = 2^96 = price 1:1, tick = 0)
+```
+
+The hook itself can be queried for live state at any time:
+
+```bash
+cast call 0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8 \
+    'lastSwapBlock(bytes32)(uint256)' $POOL_ID --rpc-url $RPC
+cast call 0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8 \
+    'surgePending(bytes32)(bool)' $POOL_ID --rpc-url $RPC
+```
+
 ### Mainnet readiness
 
 Sepolia deploy does **not** mean mainnet ready. See [SECURITY.md](SECURITY.md) for the open
