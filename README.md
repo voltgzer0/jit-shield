@@ -5,7 +5,7 @@ protocol fee on every shielded swap.
 
 - 🌐 **Live site:** [voltgzer0.github.io/jit-shield](https://voltgzer0.github.io/jit-shield)
 - 📜 **Hook on Sepolia (verified):** [`0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8`](https://sepolia.etherscan.io/address/0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8#code)
-- 🐦 **Follow / DM:** [x.com/voltgzer0](https://x.com/voltgzer0)
+- 🐦 **Follow / DM:** [x.com/voltgzer0](https://x.com/voltgzer0) · [t.me/voltgzer0](https://t.me/voltgzer0)
 - ✅ **Tests:** 12 / 12 passing · Slither: 0 actionable findings
 - 🔐 **Audit posture:** see [`SECURITY.md`](./SECURITY.md)
 - 📦 **All deployments and tx hashes:** see [`DEPLOYMENTS.md`](./DEPLOYMENTS.md)
@@ -114,7 +114,9 @@ SECURITY.md                                    # self-audit + pre-mainnet checkl
 
 ## Author
 
-Built by [voltgzer0](https://github.com/voltgzer0) · `voltmattty77@gmail.com`
+Built by [voltgzer0](https://github.com/voltgzer0).
+
+Contact: [X](https://x.com/voltgzer0) · [Telegram](https://t.me/voltgzer0) · [Cantina](https://cantina.xyz/u/voltgzer0) · `voltmattty77@gmail.com`
 
 Whitehat. Bug-bounty friendly. Open to partner pools.
 
