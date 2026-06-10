@@ -1,0 +1,16 @@
+{
+  "window": {
+    "from_block": 25287989,
+    "to_block": 25289489,
+    "blocks": 1501
+  },
+  "total_jit_candidates": 3,
+  "by_pool": {
+    "USDC/WETH 0.05%": 3
+  },
+  "range_width_stats": {
+    "min": 10,
+    "median": 10,
+    "max": 10
+  }
+}

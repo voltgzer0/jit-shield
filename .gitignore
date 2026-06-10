@@ -34,3 +34,4 @@ install_v4.sh
 build.sh
 test_run.sh
 commit.sh
+scripts/replay/finder.log
