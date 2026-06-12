@@ -35,3 +35,11 @@ build.sh
 test_run.sh
 commit.sh
 scripts/replay/finder.log
+
+# --- Open-core: private detection kernel (NEVER commit) ----------------------
+# The public engine ships the interface + reference scorer. The precise detector
+# that closes GAP-1 (add-first JIT) stays on the operator's machine only.
+engine/_core_signal.py
+engine/.secret/
+engine/**/__pycache__/
+*.secret.py

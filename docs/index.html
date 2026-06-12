@@ -304,7 +304,120 @@
       </span>
     </div>
   </div>
+
+  <!-- ---------- LIVE FEED (reads public Sepolia RPC in your browser) ---------- -->
+  <div class="live-card" id="livefeed" style="margin-top: 28px;">
+    <h3>
+      <span>Live on-chain feed</span>
+      <span class="chain-badge" id="lf-status">connecting…</span>
+    </h3>
+    <p style="font-size: 14px; margin: -6px 0 18px;">
+      Read straight from a public Sepolia node by your browser, no backend. This is the
+      on-chain footprint of the detection engine — the engine itself is not in this
+      repository. Refresh and the numbers update from chain state.
+    </p>
+    <div class="kv-row">
+      <span class="kv-label">Chain head</span>
+      <span class="kv-value" id="lf-block">—</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Surge fee (live)</span>
+      <span class="kv-value" id="lf-surge">—</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Last swap block</span>
+      <span class="kv-value" id="lf-lastswap">—</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Protocol fee — bookkeeping</span>
+      <span class="kv-value" id="lf-accrued">—</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Protocol fee — real ERC20 balance</span>
+      <span class="kv-value" id="lf-balance">—</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-label">Reconciliation</span>
+      <span class="kv-value" id="lf-recon">—</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-faint); margin: 16px 0 0;">
+      Bookkeeping equals real balance ⇒ the hook holds a tradeable position, not just
+      events. The precise detector that drives arming runs privately — available on request.
+    </p>
+  </div>
 </section>
+
+<script>
+(function () {
+  // Free public Sepolia endpoints, tried in order; rotates on any failure/CORS block.
+  var RPCS = [
+    "https://ethereum-sepolia.publicnode.com",
+    "https://ethereum-sepolia-rpc.publicnode.com",
+    "https://1rpc.io/sepolia",
+    "https://rpc.sepolia.org",
+    "https://rpc2.sepolia.org",
+    "https://sepolia.gateway.tenderly.co",
+    "https://endpoints.omniatech.io/v1/eth/sepolia/public",
+    "https://eth-sepolia.public.blastapi.io"
+  ];
+  var HOOK = "0xca2f96f95c9E7a2109ecbD64bf80F7Cf77d86ac8";
+  var POOL = "0x467d6551c1ac498475b01dd23cd73ce9a61de3fae5e00455e696cc55d5522818";
+  var JTA  = "0x7CE8535D4fD28DE2d929B03A7B6d9d6045F36872";
+  // precomputed selectors (verified against deployed hook ABI)
+  var SEL = {
+    surge:      "0x5fdefa2c",                     // surgeFeeBips()
+    lastSwap:   "0xe9702d27",                      // lastSwapBlock(bytes32)
+    accrued:    "0x07311283",                      // accruedFees(address)
+    balanceOf:  "0x70a08231"                       // balanceOf(address)
+  };
+  function pad(h){ h = h.replace(/^0x/,""); while(h.length<64) h="0"+h; return h; }
+  function el(id){ return document.getElementById(id); }
+  function setStatus(t, ok){ var s=el("lf-status"); s.textContent=t; s.style.color = ok?"var(--accent)":"var(--warn)"; }
+
+  function rpc(rpcUrl, method, params){
+    return fetch(rpcUrl, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({jsonrpc:"2.0", id:1, method:method, params:params})
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if (j.error) throw new Error(j.error.message||"rpc error");
+      return j.result;
+    });
+  }
+  function call(rpcUrl, to, data){ return rpc(rpcUrl, "eth_call", [{to:to, data:data}, "latest"]); }
+  function toInt(hex){ return hex && hex!=="0x" ? BigInt(hex) : 0n; }
+  function fmt(bi){ return bi.toString(); }
+
+  function load(rpcUrl){
+    return Promise.all([
+      rpc(rpcUrl, "eth_blockNumber", []),
+      call(rpcUrl, HOOK, SEL.surge),
+      call(rpcUrl, HOOK, SEL.lastSwap + pad(POOL)),
+      call(rpcUrl, HOOK, SEL.accrued + pad(JTA)),
+      call(rpcUrl, JTA,  SEL.balanceOf + pad(HOOK))
+    ]).then(function(res){
+      var head = toInt(res[0]), surge = toInt(res[1]), lastSwap = toInt(res[2]);
+      var accrued = toInt(res[3]), balance = toInt(res[4]);
+      el("lf-block").textContent = fmt(head);
+      el("lf-surge").textContent = fmt(surge) + " pips (" + (Number(surge)/10000).toFixed(2) + "%)";
+      el("lf-lastswap").textContent = fmt(lastSwap);
+      el("lf-accrued").textContent = fmt(accrued) + " wei (JTA)";
+      el("lf-balance").textContent = fmt(balance) + " wei (JTA)";
+      var ok = accrued === balance;
+      var recon = el("lf-recon");
+      recon.textContent = ok ? "✓ reconciled (book = balance)" : "drift detected";
+      recon.style.color = ok ? "var(--accent)" : "var(--bad)";
+      setStatus("live · " + new Date().toUTCString().replace(/:\d\d GMT/," UTC"), true);
+    });
+  }
+
+  function tryChain(i){
+    if (i >= RPCS.length){ setStatus("rpc unavailable — verify via cast (see DEPLOYMENTS.md)", false); return; }
+    load(RPCS[i]).catch(function(){ tryChain(i+1); });
+  }
+  tryChain(0);
+  setInterval(function(){ tryChain(0); }, 30000);
+})();
+</script>
 
 <!-- ---------- MECHANISM ---------- -->
 <section id="mechanism">
