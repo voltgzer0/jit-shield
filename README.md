@@ -114,7 +114,7 @@ SECURITY.md                                    # self-audit + pre-mainnet checkl
 
 ## Author
 
-Built by [voltgzer0](https://github.com/voltgzer0).
+Built by [voltgzer0](https://github.com/voltgzer0) — part of the **Voltgzer0 Labs Ltd** security portfolio.
 
 Contact: [X](https://x.com/voltgzer0) · [Telegram](https://t.me/voltgzer0) · [Cantina](https://cantina.xyz/u/voltgzer0) · `voltmattty77@gmail.com`
 

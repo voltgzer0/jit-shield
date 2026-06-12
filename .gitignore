@@ -43,3 +43,20 @@ engine/_core_signal.py
 engine/.secret/
 engine/**/__pycache__/
 *.secret.py
+private/
+
+# --- Hygiene: dev scaffolding artefacts that must never ship --------------
+# Root-level shell scripts used during scaffolding/deploy iteration. The
+# already-explicit allow/deny rules above remain; the catch-all below ignores
+# all the rest. scripts/replay/*.sh stays tracked because it lives in a
+# subdirectory, which /*.sh does not match.
+/*.sh
+
+# Local IDE / agent state.
+.claude/
+
+# Archive bundles — never commit zipped repos.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
