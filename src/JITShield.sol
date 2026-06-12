@@ -11,6 +11,9 @@ import {ModifyLiquidityParams, SwapParams} from "@v4-core/src/types/PoolOperatio
 import {Currency, CurrencyLibrary} from "@v4-core/src/types/Currency.sol";
 import {LPFeeLibrary} from "@v4-core/src/libraries/LPFeeLibrary.sol";
 
+// Native currency sentinel used by v4 CurrencyLibrary (address(0)).
+Currency constant NATIVE_CURRENCY = Currency.wrap(address(0));
+
 /// @title JITShield — a Uniswap v4 hook that neutralises Just-In-Time MEV against passive LPs.
 /// @notice Three mechanisms run together:
 ///         1. JIT detection in beforeAddLiquidity flags positions added in the same block as the
@@ -107,7 +110,16 @@ contract JITShield is IHooks {
 
     // --- Receive native --------------------------------------------------------------------
 
-    receive() external payable {}
+    /// @notice Accept native ETH and credit it to the protocol-fee escrow so the owner can
+    /// withdraw it via `withdrawProtocolFees(NATIVE_CURRENCY, to)`. Prevents accidental
+    /// transfers (or PoolManager.take settlements involving native) from becoming
+    /// permanently stuck in the hook contract.
+    receive() external payable {
+        if (msg.value > 0) {
+            accruedFees[NATIVE_CURRENCY] += msg.value;
+            emit ProtocolFeeAccrued(NATIVE_CURRENCY, msg.value);
+        }
+    }
 
     // --- Admin ------------------------------------------------------------------------------
 
@@ -159,11 +171,17 @@ contract JITShield is IHooks {
     ) external onlyPoolManager returns (bytes4) {
         PoolId pid = key.toId();
 
-        // Heuristic: liquidity added in the same block as the last swap is JIT-shaped.
+        // Heuristic: liquidity added in the same block as the last swap is JIT-shaped
+        // (sandwich-style: prior swap → JIT add → back-run swap). The bot's back-run
+        // swap pays the surge because we arm it RIGHT HERE — not at remove time, when
+        // it would only catch the next innocent user. Classical add-first JIT (no
+        // prior swap in the block) remains undetected — see
+        // test/JITShieldKnownLimitations.t.sol GAP-1.
         if (lastSwapBlock[pid] == block.number && params.liquidityDelta > 0) {
             bytes32 pk = positionKey(pid, sender, params.tickLower, params.tickUpper, params.salt);
             uint256 unlock = block.number + timeLockBlocks;
             positionUnlockBlock[pk] = unlock;
+            surgePending[pid] = true;
             emit JITDetected(pid, sender, unlock);
         }
 

@@ -64,7 +64,7 @@ contract JITShieldReplayTest is Test, Deployers {
     ///         REPLAY_SKIP=1 if running tests without the dataset present.
     function test_ReplayHistoricJITCandidates() public {
         if (vm.envOr("REPLAY_SKIP", uint256(0)) == 1) {
-            console2.log("REPLAY_SKIP set — skipping replay test");
+            console2.log("REPLAY_SKIP set - skipping replay test");
             return;
         }
 
